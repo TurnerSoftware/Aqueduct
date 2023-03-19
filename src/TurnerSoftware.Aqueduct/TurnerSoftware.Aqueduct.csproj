@@ -2,8 +2,13 @@
 
 	<PropertyGroup>
 		<TargetFramework>net6.0</TargetFramework>
+		<AssemblyName>TurnerSoftware.Aqueduct</AssemblyName>
+		<Title>TurnerSoftware.Aqueduct</Title>
+		<Description>Utilties and extension methods for working with streams and pipes</Description>
+		<PackageTags>$(PackageBaseTags)</PackageTags>
+		<Authors>James Turner</Authors>
+		
 		<ImplicitUsings>enable</ImplicitUsings>
-		<Nullable>enable</Nullable>
 	</PropertyGroup>
 
 	<ItemGroup>
