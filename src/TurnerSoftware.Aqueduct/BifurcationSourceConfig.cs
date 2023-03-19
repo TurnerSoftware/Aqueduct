@@ -5,9 +5,12 @@
 /// </summary>
 public class BifurcationSourceConfig
 {
-    public const int DefaultMinReadBufferSize = 4096;
+    internal const int DefaultMinReadBufferSize = 4096;
 
-    public static readonly BifurcationSourceConfig DefaultConfig = new();
+	/// <summary>
+	/// The default configuration for <see cref="BifurcationSourceConfig"/>.
+	/// </summary>
+	public static readonly BifurcationSourceConfig DefaultConfig = new();
 
     /// <summary>
     /// The minimum read buffer size before writing data to the targets. When -1 is set, there is no minimum read buffer size.
@@ -44,6 +47,9 @@ public class BifurcationSourceConfig
 /// </summary>
 public class StreamBifurcationSourceConfig : BifurcationSourceConfig
 {
+	/// <summary>
+	/// The default configuration for <see cref="StreamBifurcationSourceConfig"/>.
+	/// </summary>
     public static readonly StreamBifurcationSourceConfig DefaultStreamConfig = new();
 
     /// <summary>

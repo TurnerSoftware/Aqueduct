@@ -1,7 +1,11 @@
 ﻿namespace TurnerSoftware.Aqueduct;
 
+/// <summary>
+/// An exception specifically for capturing errors that arise from bifurcation.
+/// </summary>
 public class BifurcationException : Exception
 {
-    public BifurcationException(string? message) : base(message) { }
-    public BifurcationException(string? message, Exception? innerException) : base(message, innerException) { }
+	internal BifurcationException() : base() { }
+    internal BifurcationException(string? message) : base(message) { }
+    internal BifurcationException(string? message, Exception? innerException) : base(message, innerException) { }
 }

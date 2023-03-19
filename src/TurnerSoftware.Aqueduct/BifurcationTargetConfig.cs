@@ -7,9 +7,9 @@ namespace TurnerSoftware.Aqueduct;
 /// </summary>
 public class BifurcationTargetConfig
 {
-    public const int DefaultBlockAfter = 32768;
-    public const int DefaultResumeAfter = 16384;
-    public const int DefaultMaxTotalBytes = -1;
+	internal const int DefaultBlockAfter = 32768;
+	internal const int DefaultResumeAfter = 16384;
+	internal const int DefaultMaxTotalBytes = -1;
 
     /// <summary>
     /// The reader function that will handle this specific bifurcation target.
