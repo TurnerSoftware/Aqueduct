@@ -1,0 +1,39 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.5.33209.295
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "TurnerSoftware.Aqueduct", "src\TurnerSoftware.Aqueduct\TurnerSoftware.Aqueduct.csproj", "{8BB5B939-1425-4AEA-9438-29E20C5C5309}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{2AA4A059-93AC-4F2B-A62F-6F3C935A3203}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{A67C346D-6E1C-4186-90D1-94FF299B495B}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TurnerSoftware.Aqueduct.Tests", "tests\TurnerSoftware.Aqueduct.Tests\TurnerSoftware.Aqueduct.Tests.csproj", "{D4A86C4F-779E-4E70-AC8A-45BA2D419AEE}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{8BB5B939-1425-4AEA-9438-29E20C5C5309}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{8BB5B939-1425-4AEA-9438-29E20C5C5309}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{8BB5B939-1425-4AEA-9438-29E20C5C5309}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{8BB5B939-1425-4AEA-9438-29E20C5C5309}.Release|Any CPU.Build.0 = Release|Any CPU
+		{D4A86C4F-779E-4E70-AC8A-45BA2D419AEE}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D4A86C4F-779E-4E70-AC8A-45BA2D419AEE}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D4A86C4F-779E-4E70-AC8A-45BA2D419AEE}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D4A86C4F-779E-4E70-AC8A-45BA2D419AEE}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{8BB5B939-1425-4AEA-9438-29E20C5C5309} = {2AA4A059-93AC-4F2B-A62F-6F3C935A3203}
+		{D4A86C4F-779E-4E70-AC8A-45BA2D419AEE} = {A67C346D-6E1C-4186-90D1-94FF299B495B}
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {57E7526E-4A07-4AE4-8E56-5D577F4AD7AB}
+	EndGlobalSection
+EndGlobal
