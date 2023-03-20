@@ -33,6 +33,12 @@ internal static class PipeBifurcation
             ReaderTask = Config.Reader(Pipe.Reader, cancellationToken);
         }
 
+		/// <summary>
+		/// Using the <paramref name="buffer"/>, writes as much as configured to the bifurcation target.
+		/// </summary>
+		/// <param name="buffer"></param>
+		/// <param name="cancellationToken"></param>
+		/// <returns>Whether the target can still be written to.</returns>
         public async ValueTask<bool> WriteAsync(ReadOnlySequence<byte> buffer, CancellationToken cancellationToken)
         {
             if (IsCompleted)
@@ -53,46 +59,72 @@ internal static class PipeBifurcation
 
             var flushResult = await Pipe.Writer.FlushAsync(cancellationToken);
 
-            RemainingBytes -= bytesToRead;
-            IsCompleted = flushResult.IsCompleted || RemainingBytes == 0;
+			if (RemainingBytes != -1)
+			{
+				RemainingBytes -= bytesToRead;
+				if (RemainingBytes == 0)
+				{
+					return false;
+				}
+			}
 
-            return flushResult.IsCompleted;
+			return !flushResult.IsCompleted;
         }
 
-        public ValueTask CompleteWriterAsync(Exception? exception = null)
-        {
-            IsCompleted = true;
-            return Pipe.Writer.CompleteAsync(exception);
-        }
+		/// <summary>
+		/// Completes the bifurcation target and awaits the reader. Any exceptions the reader throws will bubble out.
+		/// </summary>
+		/// <returns></returns>
+		public async Task CompleteAsync()
+		{
+			IsCompleted = true;
+			await Pipe.Writer.CompleteAsync();
 
-        public Task RunToCompletionAsync()
-        {
-            if (ReaderTask is not null)
-            {
-                return ReaderTask;
-            }
-            return Task.CompletedTask;
-        }
+			//Run the task to completion
+			if (ReaderTask is not null)
+			{
+				await ReaderTask;
+			}
+		}
 
-        public async Task TryRunToCompletionAsync()
-        {
-            if (ReaderTask is not null)
-            {
-                if (ReaderTask.IsFaulted || ReaderTask.IsCompleted)
-                {
-                    return;
-                }
+		/// <summary>
+		/// Completes the bifurcation target in a faulted state, awaiting the reader and exception handler.
+		/// No exceptions from either the reader or exception handler will bubble.
+		/// </summary>
+		/// <param name="exception">The exception used to trigger the faulted state.</param>
+		/// <returns></returns>
+		public async Task CompleteWithExceptionAsync(Exception exception)
+		{
+			await Pipe.Writer.CompleteAsync(exception);
+			if (ReaderTask is not null)
+			{
+				//Ensure that the reader task has completed execution (faulted or not)
+				if (!ReaderTask.IsCompleted && !ReaderTask.IsFaulted)
+				{
+					try
+					{
+						await ReaderTask;
+					}
+					catch
+					{
+						//Ignore any exceptions
+					}
+				}
 
-                try
-                {
-                    await ReaderTask;
-                }
-                catch
-                {
-                    //Ignore any exceptions
-                }
-            }
-        }
+				//Trigger any custom exception handler
+				if (Config.ExceptionHandler is not null)
+				{
+					try
+					{
+						await Config.ExceptionHandler(exception);
+					}
+					catch
+					{
+						//Ignore any exceptions
+					}
+				}
+			}
+		}
     }
     
     public static async Task BifurcatedReadAsync(PipeReader sourceReader, BifurcationSourceConfig sourceConfig, params BifurcationTargetConfig[] targetConfigs)
@@ -137,12 +169,10 @@ internal static class PipeBifurcation
                         continue;
                     }
 
-                    var isComplete = await target.WriteAsync(buffer, sourceConfig.CancellationToken);
-                    if (isComplete)
+                    var canKeepWriting = await target.WriteAsync(buffer, sourceConfig.CancellationToken);
+                    if (!canKeepWriting)
                     {
-                        //It IS NOT an error if the reader no longer needs further writes
-                        //It IS an error if the task is faulted so we need to await the task to ensure that
-                        await target.RunToCompletionAsync();
+						await target.CompleteAsync();
                     }
                 }
 
@@ -154,8 +184,7 @@ internal static class PipeBifurcation
             for (var i = 0; i < targets.Length; i++)
             {
                 var target = targets[i];
-                await target.CompleteWriterAsync();
-                await target.RunToCompletionAsync();
+				await target.CompleteAsync();
             }
         }
         catch (Exception innerException)
@@ -166,13 +195,13 @@ internal static class PipeBifurcation
             for (var i = 0; i < targets.Length; i++)
             {
                 var target = targets[i];
-                await target.CompleteWriterAsync(exception);
-
-                //This ensures that all reader tasks are no longer running before we bubble the exception
-                await target.TryRunToCompletionAsync();
+				await target.CompleteWithExceptionAsync(exception);
             }
 
-            throw exception;
+			if (sourceConfig.BubbleExceptions)
+			{
+				throw exception;
+			}
         }
     }
 }

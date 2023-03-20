@@ -15,6 +15,10 @@ public class BifurcationTargetConfig
     /// The reader function that will handle this specific bifurcation target.
     /// </summary>
     public Func<PipeReader, CancellationToken, Task> Reader { get; }
+	/// <summary>
+	/// The individual exception handler for this bifurcation target when exceptions occur during bifurcation.
+	/// </summary>
+	public Func<Exception, Task>? ExceptionHandler { get; }
     /// <summary>
     /// The number of unread bytes before writing will block to the bifurcation target.
     /// </summary>
@@ -28,37 +32,42 @@ public class BifurcationTargetConfig
     /// </summary>
     public int MaxTotalBytes { get; }
 
-    /// <summary>
-    /// Creates a new <see cref="BifurcationTargetConfig"/> for <see cref="Stream"/>-based readers.
-    /// </summary>
-    /// <param name="reader">The reader function that will handle this specific bifurcation target.</param>
-    /// <param name="blockAfter">The number of unread bytes before writing will block to the bifurcation target. This must be the same or greater than <paramref name="resumeAfter"/>.</param>
-    /// <param name="resumeAfter">The number of unread bytes before resuming writing to the bifurcation target. This must be the same or lower than <paramref name="blockAfter"/>.</param>
-    /// <param name="maxTotalBytes">The max number of bytes to write to the bifurcation target. Use -1 to specify no limit.</param>
-    /// <exception cref="ArgumentException"></exception>
-    public BifurcationTargetConfig(
+	/// <summary>
+	/// Creates a new <see cref="BifurcationTargetConfig"/> for <see cref="Stream"/>-based readers.
+	/// </summary>
+	/// <param name="reader">The reader function that will handle this specific bifurcation target.</param>
+	/// <param name="exceptionHandler">The individual exception handler for this bifurcation target when exceptions occur during bifurcation.</param>
+	/// <param name="blockAfter">The number of unread bytes before writing will block to the bifurcation target. This must be the same or greater than <paramref name="resumeAfter"/>.</param>
+	/// <param name="resumeAfter">The number of unread bytes before resuming writing to the bifurcation target. This must be the same or lower than <paramref name="blockAfter"/>.</param>
+	/// <param name="maxTotalBytes">The max number of bytes to write to the bifurcation target. Use -1 to specify no limit.</param>
+	/// <exception cref="ArgumentException"></exception>
+	public BifurcationTargetConfig(
         Func<Stream, CancellationToken, Task> reader,
-        int blockAfter = DefaultBlockAfter,
+		Func<Exception, Task>? exceptionHandler = null,
+		int blockAfter = DefaultBlockAfter,
         int resumeAfter = DefaultResumeAfter,
         int maxTotalBytes = DefaultMaxTotalBytes
     ) : this(
         (pipeReader, cancellationToken) => reader(pipeReader.AsStream(), cancellationToken),
-        blockAfter,
+		exceptionHandler,
+		blockAfter,
         resumeAfter,
         maxTotalBytes
     )
     { }
 
-    /// <summary>
-    /// Creates a new <see cref="BifurcationTargetConfig"/> for <see cref="PipeReader"/>-based readers.
-    /// </summary>
-    /// <param name="reader">The reader function that will handle this specific bifurcation target.</param>
-    /// <param name="blockAfter">The number of unread bytes before writing will block to the bifurcation target. This must be the same or greater than <paramref name="resumeAfter"/>.</param>
-    /// <param name="resumeAfter">The number of unread bytes before resuming writing to the bifurcation target. This must be the same or lower than <paramref name="blockAfter"/>.</param>
-    /// <param name="maxTotalBytes">The max number of bytes to write to the bifurcation target. Use -1 to specify no limit.</param>
-    /// <exception cref="ArgumentException"></exception>
-    public BifurcationTargetConfig(
+	/// <summary>
+	/// Creates a new <see cref="BifurcationTargetConfig"/> for <see cref="PipeReader"/>-based readers.
+	/// </summary>
+	/// <param name="reader">The reader function that will handle this specific bifurcation target.</param>
+	/// <param name="exceptionHandler">The individual exception handler for this bifurcation target when exceptions occur during bifurcation.</param>
+	/// <param name="blockAfter">The number of unread bytes before writing will block to the bifurcation target. This must be the same or greater than <paramref name="resumeAfter"/>.</param>
+	/// <param name="resumeAfter">The number of unread bytes before resuming writing to the bifurcation target. This must be the same or lower than <paramref name="blockAfter"/>.</param>
+	/// <param name="maxTotalBytes">The max number of bytes to write to the bifurcation target. Use -1 to specify no limit.</param>
+	/// <exception cref="ArgumentException"></exception>
+	public BifurcationTargetConfig(
         Func<PipeReader, CancellationToken, Task> reader,
+		Func<Exception, Task>? exceptionHandler = null,
         int blockAfter = DefaultBlockAfter,
         int resumeAfter = DefaultResumeAfter,
         int maxTotalBytes = DefaultMaxTotalBytes
@@ -75,6 +84,7 @@ public class BifurcationTargetConfig
         }
 
         Reader = reader;
+		ExceptionHandler = exceptionHandler;
         BlockAfter = blockAfter;
         ResumeAfter = resumeAfter;
         MaxTotalBytes = maxTotalBytes;

@@ -16,19 +16,25 @@ public class BifurcationSourceConfig
     /// The minimum read buffer size before writing data to the targets. When -1 is set, there is no minimum read buffer size.
     /// </summary>
     public int MinReadBufferSize { get; }
-    /// <summary>
-    /// The token to monitor for cancellation requests.
-    /// </summary>
-    public CancellationToken CancellationToken { get; }
+	/// <summary>
+	/// Whether to bubble exceptions during bifurcation to the calling code.
+	/// </summary>
+	public bool BubbleExceptions { get; }
+	/// <summary>
+	/// The token to monitor for cancellation requests.
+	/// </summary>
+	public CancellationToken CancellationToken { get; }
 
-    /// <summary>
-    /// Creates a new <see cref="BifurcationSourceConfig"/>.
-    /// </summary>
-    /// <param name="minReadBufferSize">The minimum read buffer size before writing data to the targets. Use -1 to specify no minimum read buffer size.</param>
-    /// <param name="cancellationToken">The token to monitor for cancellation requests.</param>
-    /// <exception cref="ArgumentException"></exception>
-    public BifurcationSourceConfig(
-        int minReadBufferSize = DefaultMinReadBufferSize, 
+	/// <summary>
+	/// Creates a new <see cref="BifurcationSourceConfig"/>.
+	/// </summary>
+	/// <param name="minReadBufferSize">The minimum read buffer size before writing data to the targets. Use -1 to specify no minimum read buffer size.</param>
+	/// <param name="bubbleExceptions">Whether to bubble exceptions during bifurcation to the calling code.</param>
+	/// <param name="cancellationToken">The token to monitor for cancellation requests.</param>
+	/// <exception cref="ArgumentException"></exception>
+	public BifurcationSourceConfig(
+        int minReadBufferSize = DefaultMinReadBufferSize,
+		bool bubbleExceptions = true,
         CancellationToken cancellationToken = default
     )
     {
@@ -38,6 +44,7 @@ public class BifurcationSourceConfig
         }
 
         MinReadBufferSize = minReadBufferSize;
+		BubbleExceptions = bubbleExceptions;
         CancellationToken = cancellationToken;
     }
 }
@@ -57,18 +64,20 @@ public class StreamBifurcationSourceConfig : BifurcationSourceConfig
     /// </summary>
     public bool LeaveOpen { get; }
 
-    /// <summary>
-    /// Creates a new <see cref="StreamBifurcationSourceConfig"/>.
-    /// </summary>
-    /// <param name="leaveOpen">Whether to leave the stream open after reading has completed.</param>
-    /// <param name="minReadBufferSize">The minimum read buffer size before writing data to the targets. Use -1 to specify no minimum read buffer size.</param>
-    /// <param name="cancellationToken">The token to monitor for cancellation requests.</param>
-    /// <exception cref="ArgumentException"></exception>
-    public StreamBifurcationSourceConfig(
+	/// <summary>
+	/// Creates a new <see cref="StreamBifurcationSourceConfig"/>.
+	/// </summary>
+	/// <param name="leaveOpen">Whether to leave the stream open after reading has completed.</param>
+	/// <param name="minReadBufferSize">The minimum read buffer size before writing data to the targets. Use -1 to specify no minimum read buffer size.</param>
+	/// <param name="bubbleExceptions">Whether to bubble exceptions during bifurcation to the calling code.</param>
+	/// <param name="cancellationToken">The token to monitor for cancellation requests.</param>
+	/// <exception cref="ArgumentException"></exception>
+	public StreamBifurcationSourceConfig(
         bool leaveOpen = false,
         int minReadBufferSize = DefaultMinReadBufferSize,
+		bool bubbleExceptions = true,
         CancellationToken cancellationToken = default
-    ) : base(minReadBufferSize, cancellationToken)
+    ) : base(minReadBufferSize, bubbleExceptions, cancellationToken)
     {
         LeaveOpen = leaveOpen;
     }
