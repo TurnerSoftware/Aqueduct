@@ -77,6 +77,11 @@ internal static class PipeBifurcation
 		/// <returns></returns>
 		public async Task CompleteAsync()
 		{
+			if (IsCompleted)
+			{
+				return;
+			}
+
 			IsCompleted = true;
 			await Pipe.Writer.CompleteAsync();
 
@@ -134,6 +139,7 @@ internal static class PipeBifurcation
             throw new ArgumentException("No target configurations to bifurcate the source reader to", nameof(targetConfigs));
         }
 
+		var earlyCompletedTargets = 0;
         var targets = new BifurcationState[targetConfigs.Length];
 
         for (var i = 0; i < targetConfigs.Length; i++)
@@ -173,10 +179,17 @@ internal static class PipeBifurcation
                     if (!canKeepWriting)
                     {
 						await target.CompleteAsync();
+						earlyCompletedTargets++;
                     }
                 }
 
-                sourceReader.AdvanceTo(buffer.End);
+				//Exit reading early if all targets have completed
+				if (earlyCompletedTargets == targets.Length)
+				{
+					break;
+				}
+
+				sourceReader.AdvanceTo(buffer.End);
             }
 
             //Complete reader and all branch writers
