@@ -46,6 +46,12 @@ internal static class PipeBifurcation
                 return false;
             }
 
+			//Await faulted readers to correctly bubble exceptions
+			if (ReaderTask is not null && ReaderTask.IsFaulted)
+			{
+				await ReaderTask;
+			}
+
             var bytesToRead = (int)buffer.Length;
             if (RemainingBytes != -1)
             {
