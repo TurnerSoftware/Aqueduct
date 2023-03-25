@@ -7,7 +7,6 @@ namespace TurnerSoftware.Aqueduct.Tests;
 public class PipeBifurcationTests
 {
     private static PipeReader CreateSource(string value) => PipeReader.Create(new(Encoding.ASCII.GetBytes(value)));
-    private static PipeReader CreateSource(byte[] bytes) => PipeReader.Create(new(bytes));
 
     private static Func<PipeReader, CancellationToken, Task> CreateStringTarget(Func<Task<string>, Task> assertion)
     {
@@ -49,19 +48,273 @@ public class PipeBifurcationTests
             .ThrowAsync<BifurcationException>()
                 .WithInnerException<BifurcationException, ApplicationException>()
                 .WithMessage("My processing exception");
-    }
+	}
 
-    [TestMethod]
-    public async Task SingleTarget_DefaultConfig_Success()
-    {
-        var source = CreateSource("Test Value");
+	[TestMethod]
+	public async Task SingleTarget_DefaultConfig_Success()
+	{
+		var source = CreateSource("Test Value");
+		var targetReaderHasCompleted = false;
 
-        await PipeBifurcation.BifurcatedReadAsync(source, BifurcationSourceConfig.DefaultConfig, new BifurcationTargetConfig(
-            CreateStringTarget(async resultTask =>
-            {
-                var result = await resultTask;
-                result.Should().Be("Test Value");
-            })
-        ));
-    }
+		await PipeBifurcation.BifurcatedReadAsync(
+			source, 
+			BifurcationSourceConfig.DefaultConfig, 
+			new BifurcationTargetConfig(
+				CreateStringTarget(async resultTask =>
+				{
+					var result = await resultTask;
+					result.Should().Be("Test Value");
+					targetReaderHasCompleted = true;
+				})
+			)
+		);
+
+		targetReaderHasCompleted.Should().BeTrue();
+	}
+
+	[TestMethod]
+	public async Task MultiTarget_DefaultConfig_Success()
+	{
+		var source = CreateSource("Test Value");
+		var completedTargetReaders = 0;
+
+		await PipeBifurcation.BifurcatedReadAsync(source, 
+			BifurcationSourceConfig.DefaultConfig, 
+			new BifurcationTargetConfig(
+				CreateStringTarget(async resultTask =>
+				{
+					var result = await resultTask;
+					result.Should().Be("Test Value");
+					Interlocked.Increment(ref completedTargetReaders);
+				})
+			),
+			new BifurcationTargetConfig(
+				CreateStringTarget(async resultTask =>
+				{
+					var result = await resultTask;
+					result.Should().Be("Test Value");
+					Interlocked.Increment(ref completedTargetReaders);
+				})
+			)
+		);
+
+		completedTargetReaders.Should().Be(2);
+	}
+
+	[TestMethod]
+	public async Task SingleTarget_ConfiguredMaxTotalBytes_LimitsBytes()
+	{
+		var source = CreateSource("Test Value");
+
+		await PipeBifurcation.BifurcatedReadAsync(
+			source, 
+			BifurcationSourceConfig.DefaultConfig, 
+			new BifurcationTargetConfig(
+				CreateStringTarget(async resultTask =>
+				{
+					var result = await resultTask;
+					result.Should().Be("Test");
+				}),
+				maxTotalBytes: 4
+			)
+		);
+	}
+
+	[TestMethod]
+	public async Task MultiTarget_ConfiguredMaxTotalBytesForOne_LimitsBytesOnlyForConfigured()
+	{
+		var source = CreateSource("Test Value");
+
+		await PipeBifurcation.BifurcatedReadAsync(
+			source, 
+			BifurcationSourceConfig.DefaultConfig,
+			new BifurcationTargetConfig(
+				CreateStringTarget(async resultTask =>
+				{
+					var result = await resultTask;
+					result.Should().Be("Test");
+				}),
+				maxTotalBytes: 4
+			),
+			new BifurcationTargetConfig(
+				CreateStringTarget(async resultTask =>
+				{
+					var result = await resultTask;
+					result.Should().Be("Test Value");
+				})
+			)
+		);
+	}
+
+	[TestMethod]
+	public async Task MultiTarget_ExceptionsFromOtherTargets_PushesExceptionsToTargets()
+	{
+		var sourcePipe = new Pipe();
+
+		Exception targetReaderException = null!;
+
+		var bifurcationTask = PipeBifurcation.BifurcatedReadAsync(
+			sourcePipe.Reader,
+			new BifurcationSourceConfig(minReadBufferSize: 4, bubbleExceptions: false),
+			new BifurcationTargetConfig(
+				async (reader, cancellationToken) =>
+				{
+					await reader.ReadAsync(cancellationToken);
+					throw new Exception("TargetException");
+				}
+			),
+			new BifurcationTargetConfig(
+				async (reader, cancellationToken) =>
+				{
+					try
+					{
+						var readResult = await reader.ReadAsync(cancellationToken);
+						reader.AdvanceTo(readResult.Buffer.End);
+						await reader.ReadAsync(cancellationToken);
+					}
+					catch (Exception ex)
+					{
+						targetReaderException = ex;
+					}
+				}
+			)
+		);
+
+		var action = async () =>
+		{
+			await sourcePipe.Writer.WriteAsync(new byte[4]);
+			await sourcePipe.Writer.WriteAsync(new byte[4]);
+			await sourcePipe.Writer.CompleteAsync();
+			await bifurcationTask;
+		};
+
+		await action.Should()
+			.NotThrowAsync<BifurcationException>();
+
+		targetReaderException.Should().BeOfType<BifurcationException>()
+			.Subject.InnerException!.Message.Should().Be("TargetException");
+	}
+
+	[TestMethod]
+	public async Task SourceConfig_MinimumBufferSize_BufferIsAtLeastMinimum()
+	{
+		var sourcePipe = new Pipe();
+		var readBufferLength = -1L;
+
+		var bifurcationTask = PipeBifurcation.BifurcatedReadAsync(
+			sourcePipe.Reader,
+			new BifurcationSourceConfig(minReadBufferSize: 4),
+			new BifurcationTargetConfig(
+				async (reader, cancellationToken) =>
+				{
+					var result = await reader.ReadAsync(cancellationToken);
+					readBufferLength = result.Buffer.Length;
+					await reader.CompleteAsync();
+				}
+			)
+		);
+
+		var action = async () =>
+		{
+			await sourcePipe.Writer.WriteAsync(new byte[2]);
+			await sourcePipe.Writer.WriteAsync(new byte[2]);
+			await sourcePipe.Writer.WriteAsync(new byte[2]);
+			await sourcePipe.Writer.CompleteAsync();
+
+			await bifurcationTask;
+			readBufferLength.Should().Be(4);
+		};
+
+		await action.Should().CompleteWithinAsync(TimeSpan.FromSeconds(1));
+	}
+
+	[TestMethod]
+	public async Task SourceConfig_MinimumBufferSize_MinimumDoesNotImpactLargerSize()
+	{
+		var sourcePipe = new Pipe();
+		var readBufferLength = -1L;
+
+		var bifurcationTask = PipeBifurcation.BifurcatedReadAsync(
+			sourcePipe.Reader,
+			new BifurcationSourceConfig(minReadBufferSize: 4),
+			new BifurcationTargetConfig(
+				async (reader, cancellationToken) =>
+				{
+					var result = await reader.ReadAsync(cancellationToken);
+					readBufferLength = result.Buffer.Length;
+					await reader.CompleteAsync();
+				}
+			)
+		);
+
+		var action = async () =>
+		{
+			await sourcePipe.Writer.WriteAsync(new byte[6]);
+			await sourcePipe.Writer.WriteAsync(new byte[2]);
+			await sourcePipe.Writer.CompleteAsync();
+
+			await bifurcationTask;
+			readBufferLength.Should().Be(6);
+		};
+
+		await action.Should().CompleteWithinAsync(TimeSpan.FromSeconds(1));
+	}
+
+	[TestMethod]
+	public async Task SourceConfig_BubbleExceptions_Enabled()
+	{
+		var sourcePipe = new Pipe();
+
+		var bifurcationTask = PipeBifurcation.BifurcatedReadAsync(
+			sourcePipe.Reader,
+			new BifurcationSourceConfig(minReadBufferSize: 4),
+			new BifurcationTargetConfig(
+				async (reader, cancellationToken) =>
+				{
+					await reader.ReadAsync(cancellationToken);
+					throw new Exception("TargetException");
+				}
+			)
+		);
+
+		var action = async () =>
+		{
+			await sourcePipe.Writer.WriteAsync(new byte[4]);
+			await sourcePipe.Writer.CompleteAsync();
+			await bifurcationTask;
+		};
+
+		await action.Should()
+			.ThrowAsync<BifurcationException>()
+				.WithInnerException<BifurcationException, Exception>()
+				.WithMessage("TargetException");
+	}
+
+	[TestMethod]
+	public async Task SourceConfig_BubbleExceptions_Disabled()
+	{
+		var sourcePipe = new Pipe();
+
+		var bifurcationTask = PipeBifurcation.BifurcatedReadAsync(
+			sourcePipe.Reader,
+			new BifurcationSourceConfig(minReadBufferSize: 4, bubbleExceptions: false),
+			new BifurcationTargetConfig(
+				async (reader, cancellationToken) =>
+				{
+					await reader.ReadAsync(cancellationToken);
+					throw new Exception("TargetException");
+				}
+			)
+		);
+
+		var action = async () =>
+		{
+			await sourcePipe.Writer.WriteAsync(new byte[4]);
+			await sourcePipe.Writer.CompleteAsync();
+			await bifurcationTask;
+		};
+
+		await action.Should()
+			.NotThrowAsync<BifurcationException>();
+	}
 }
