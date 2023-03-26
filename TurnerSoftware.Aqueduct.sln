@@ -9,7 +9,16 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{2AA4A059-93A
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{A67C346D-6E1C-4186-90D1-94FF299B495B}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TurnerSoftware.Aqueduct.Tests", "tests\TurnerSoftware.Aqueduct.Tests\TurnerSoftware.Aqueduct.Tests.csproj", "{D4A86C4F-779E-4E70-AC8A-45BA2D419AEE}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "TurnerSoftware.Aqueduct.Tests", "tests\TurnerSoftware.Aqueduct.Tests\TurnerSoftware.Aqueduct.Tests.csproj", "{D4A86C4F-779E-4E70-AC8A-45BA2D419AEE}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "global", "global", "{6BA89924-AC44-48A7-9625-B31BE5A0AB3F}"
+	ProjectSection(SolutionItems) = preProject
+		.editorconfig = .editorconfig
+		.gitignore = .gitignore
+		CodeCoverage.runsettings = CodeCoverage.runsettings
+		License.txt = License.txt
+		README.md = README.md
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
