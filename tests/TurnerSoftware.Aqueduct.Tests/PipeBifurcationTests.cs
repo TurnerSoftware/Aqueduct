@@ -162,11 +162,13 @@ public class PipeBifurcationTests
 				async (reader, cancellationToken) =>
 				{
 					var firstResult = await reader.ReadAsync(cancellationToken);
-					firstTargetReadBufferLength += firstResult.Buffer.Length;
+					firstTargetReadBufferLength = firstResult.Buffer.Length;
 					reader.AdvanceTo(firstResult.Buffer.End);
 					var secondResult = await reader.ReadAsync(cancellationToken);
 					firstTargetReadBufferLength += secondResult.Buffer.Length;
-					firstTargetReaderIsComplete = secondResult.IsCompleted;
+					reader.AdvanceTo(secondResult.Buffer.End);
+					var thirdResult = await reader.ReadAsync(cancellationToken);
+					firstTargetReaderIsComplete = thirdResult.IsCompleted;
 				},
 				maxTotalBytes: 6
 			),
@@ -174,7 +176,7 @@ public class PipeBifurcationTests
 				async (reader, cancellationToken) =>
 				{
 					var firstResult = await reader.ReadAsync(cancellationToken);
-					secondTargetReadBufferLength += firstResult.Buffer.Length;
+					secondTargetReadBufferLength = firstResult.Buffer.Length;
 					reader.AdvanceTo(firstResult.Buffer.End);
 					var secondResult = await reader.ReadAsync(cancellationToken);
 					secondTargetReadBufferLength += secondResult.Buffer.Length;
@@ -185,9 +187,13 @@ public class PipeBifurcationTests
 		var action = async () =>
 		{
 			await sourcePipe.Writer.WriteAsync(new byte[2]);
+			await Task.Delay(100);
 			await sourcePipe.Writer.WriteAsync(new byte[2]);
+			await Task.Delay(100);
 			await sourcePipe.Writer.WriteAsync(new byte[2]);
+			await Task.Delay(100);
 			await sourcePipe.Writer.WriteAsync(new byte[2]);
+			await Task.Delay(100);
 			await sourcePipe.Writer.CompleteAsync();
 			await bifurcationTask;
 		};
@@ -355,8 +361,11 @@ public class PipeBifurcationTests
 		var action = async () =>
 		{
 			await sourcePipe.Writer.WriteAsync(new byte[2]);
+			await Task.Delay(100);
 			await sourcePipe.Writer.WriteAsync(new byte[2]);
+			await Task.Delay(100);
 			await sourcePipe.Writer.WriteAsync(new byte[2]);
+			await Task.Delay(100);
 			await sourcePipe.Writer.CompleteAsync();
 			await bifurcationTask;
 		};
@@ -387,7 +396,9 @@ public class PipeBifurcationTests
 		var action = async () =>
 		{
 			await sourcePipe.Writer.WriteAsync(new byte[6]);
+			await Task.Delay(100);
 			await sourcePipe.Writer.WriteAsync(new byte[2]);
+			await Task.Delay(100);
 			await sourcePipe.Writer.CompleteAsync();
 			await bifurcationTask;
 		};
