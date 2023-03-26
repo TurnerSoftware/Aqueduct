@@ -147,6 +147,58 @@ public class PipeBifurcationTests
 	}
 
 	[TestMethod]
+	public async Task MultiTarget_CompletedTargets_AreNotWrittenToFurther()
+	{
+		var sourcePipe = new Pipe();
+
+		var firstTargetReadBufferLength = -1L;
+		var firstTargetReaderIsComplete = false;
+		var secondTargetReadBufferLength = -1L;
+
+		var bifurcationTask = PipeBifurcation.BifurcatedReadAsync(
+			sourcePipe.Reader,
+			new BifurcationSourceConfig(minReadBufferSize: 4),
+			new BifurcationTargetConfig(
+				async (reader, cancellationToken) =>
+				{
+					var firstResult = await reader.ReadAsync(cancellationToken);
+					firstTargetReadBufferLength += firstResult.Buffer.Length;
+					reader.AdvanceTo(firstResult.Buffer.End);
+					var secondResult = await reader.ReadAsync(cancellationToken);
+					firstTargetReadBufferLength += secondResult.Buffer.Length;
+					firstTargetReaderIsComplete = secondResult.IsCompleted;
+				},
+				maxTotalBytes: 6
+			),
+			new BifurcationTargetConfig(
+				async (reader, cancellationToken) =>
+				{
+					var firstResult = await reader.ReadAsync(cancellationToken);
+					secondTargetReadBufferLength += firstResult.Buffer.Length;
+					reader.AdvanceTo(firstResult.Buffer.End);
+					var secondResult = await reader.ReadAsync(cancellationToken);
+					secondTargetReadBufferLength += secondResult.Buffer.Length;
+				}
+			)
+		);
+
+		var action = async () =>
+		{
+			await sourcePipe.Writer.WriteAsync(new byte[2]);
+			await sourcePipe.Writer.WriteAsync(new byte[2]);
+			await sourcePipe.Writer.WriteAsync(new byte[2]);
+			await sourcePipe.Writer.WriteAsync(new byte[2]);
+			await sourcePipe.Writer.CompleteAsync();
+			await bifurcationTask;
+		};
+
+		await action.Should().CompleteWithinAsync(TimeSpan.FromSeconds(1));
+		firstTargetReadBufferLength.Should().Be(6);
+		firstTargetReaderIsComplete.Should().BeTrue();
+		secondTargetReadBufferLength.Should().Be(8);
+	}
+
+	[TestMethod]
 	public async Task MultiTarget_ExceptionsFromOtherTargets_PushesExceptionsToTargets()
 	{
 		var sourcePipe = new Pipe();
@@ -196,6 +248,92 @@ public class PipeBifurcationTests
 	}
 
 	[TestMethod]
+	public async Task MultiTarget_ExceptionsFromOtherTargets_ExceptionHandlerIsTriggered()
+	{
+		var sourcePipe = new Pipe();
+
+		Exception targetReaderException = null!;
+
+		var bifurcationTask = PipeBifurcation.BifurcatedReadAsync(
+			sourcePipe.Reader,
+			new BifurcationSourceConfig(minReadBufferSize: 4, bubbleExceptions: false),
+			new BifurcationTargetConfig(
+				async (reader, cancellationToken) =>
+				{
+					await reader.ReadAsync(cancellationToken);
+					throw new Exception("TargetException");
+				}
+			),
+			new BifurcationTargetConfig(
+				async (reader, cancellationToken) =>
+				{
+					var readResult = await reader.ReadAsync(cancellationToken);
+					reader.AdvanceTo(readResult.Buffer.End);
+					await reader.ReadAsync(cancellationToken);
+				},
+				exception =>
+				{
+					targetReaderException = exception;
+					return Task.CompletedTask;
+				}
+			)
+		);
+
+		var action = async () =>
+		{
+			await sourcePipe.Writer.WriteAsync(new byte[4]);
+			await sourcePipe.Writer.WriteAsync(new byte[4]);
+			await sourcePipe.Writer.CompleteAsync();
+			await bifurcationTask;
+		};
+
+		await action.Should()
+			.NotThrowAsync<BifurcationException>();
+
+		targetReaderException.Should().BeOfType<BifurcationException>()
+			.Subject.InnerException!.Message.Should().Be("TargetException");
+	}
+
+	[TestMethod]
+	public async Task SingleTarget_ExceptionsFromSelf_ExceptionHandlerIsTriggered()
+	{
+		var sourcePipe = new Pipe();
+
+		Exception targetReaderException = null!;
+
+		var bifurcationTask = PipeBifurcation.BifurcatedReadAsync(
+			sourcePipe.Reader,
+			new BifurcationSourceConfig(minReadBufferSize: 4, bubbleExceptions: false),
+			new BifurcationTargetConfig(
+				async (reader, cancellationToken) =>
+				{
+					await reader.ReadAsync(cancellationToken);
+					throw new Exception("TargetException");
+				},
+				exception =>
+				{
+					targetReaderException = exception;
+					return Task.CompletedTask;
+				}
+			)
+		);
+
+		var action = async () =>
+		{
+			await sourcePipe.Writer.WriteAsync(new byte[4]);
+			await sourcePipe.Writer.WriteAsync(new byte[4]);
+			await sourcePipe.Writer.CompleteAsync();
+			await bifurcationTask;
+		};
+
+		await action.Should()
+			.NotThrowAsync<BifurcationException>();
+
+		targetReaderException.Should().BeOfType<BifurcationException>()
+			.Subject.InnerException!.Message.Should().Be("TargetException");
+	}
+
+	[TestMethod]
 	public async Task SourceConfig_MinimumBufferSize_BufferIsAtLeastMinimum()
 	{
 		var sourcePipe = new Pipe();
@@ -220,12 +358,11 @@ public class PipeBifurcationTests
 			await sourcePipe.Writer.WriteAsync(new byte[2]);
 			await sourcePipe.Writer.WriteAsync(new byte[2]);
 			await sourcePipe.Writer.CompleteAsync();
-
 			await bifurcationTask;
-			readBufferLength.Should().Be(4);
 		};
 
 		await action.Should().CompleteWithinAsync(TimeSpan.FromSeconds(1));
+		readBufferLength.Should().Be(4);
 	}
 
 	[TestMethod]
@@ -252,12 +389,11 @@ public class PipeBifurcationTests
 			await sourcePipe.Writer.WriteAsync(new byte[6]);
 			await sourcePipe.Writer.WriteAsync(new byte[2]);
 			await sourcePipe.Writer.CompleteAsync();
-
 			await bifurcationTask;
-			readBufferLength.Should().Be(6);
 		};
 
 		await action.Should().CompleteWithinAsync(TimeSpan.FromSeconds(1));
+		readBufferLength.Should().Be(6);
 	}
 
 	[TestMethod]
