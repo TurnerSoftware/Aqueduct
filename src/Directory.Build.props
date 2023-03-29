@@ -8,7 +8,7 @@
 		<PackageId>$(AssemblyName)</PackageId>
 		<PackageRequireLicenseAcceptance>true</PackageRequireLicenseAcceptance>
 		<PackageLicenseExpression>MIT</PackageLicenseExpression>
-		<!--<PackageIcon>icon.png</PackageIcon>-->
+		<PackageIcon>icon.png</PackageIcon>
 		<PackageProjectUrl>https://github.com/TurnerSoftware/Aqueduct</PackageProjectUrl>
 		<PackageBaseTags>stream;pipe;reader</PackageBaseTags>
 
@@ -27,7 +27,7 @@
 	</ItemGroup>
 
 	<ItemGroup>
-		<!--<None Include="..\..\images\$(PackageIcon)" Pack="true" PackagePath="/" />-->
+		<None Include="..\..\images\$(PackageIcon)" Pack="true" PackagePath="/" />
 	</ItemGroup>
 
 </Project>

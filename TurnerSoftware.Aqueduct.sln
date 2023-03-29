@@ -6,6 +6,9 @@ MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "TurnerSoftware.Aqueduct", "src\TurnerSoftware.Aqueduct\TurnerSoftware.Aqueduct.csproj", "{8BB5B939-1425-4AEA-9438-29E20C5C5309}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{2AA4A059-93AC-4F2B-A62F-6F3C935A3203}"
+	ProjectSection(SolutionItems) = preProject
+		src\Directory.Build.props = src\Directory.Build.props
+	EndProjectSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{A67C346D-6E1C-4186-90D1-94FF299B495B}"
 EndProject

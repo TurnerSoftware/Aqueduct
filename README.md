@@ -1,6 +1,6 @@
 <div align="center">
 
-
+![Icon](images/icon.png)
 # Aqueduct
 Utilities and extension methods for working with streams and pipes
 

@@ -4,7 +4,7 @@
 		<TargetFramework>net6.0</TargetFramework>
 		<AssemblyName>TurnerSoftware.Aqueduct</AssemblyName>
 		<Title>TurnerSoftware.Aqueduct</Title>
-		<Description>Utilties and extension methods for working with streams and pipes</Description>
+		<Description>Utilities and extension methods for working with streams and pipes</Description>
 		<PackageTags>$(PackageBaseTags)</PackageTags>
 		<Authors>James Turner</Authors>
 		
