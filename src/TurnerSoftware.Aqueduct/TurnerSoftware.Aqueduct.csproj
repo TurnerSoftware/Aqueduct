@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
 	<PropertyGroup>
-		<TargetFramework>net6.0</TargetFramework>
+		<TargetFramework>net8.0</TargetFramework>
 		<AssemblyName>TurnerSoftware.Aqueduct</AssemblyName>
 		<Title>TurnerSoftware.Aqueduct</Title>
 		<Description>Utilities and extension methods for working with streams and pipes</Description>
@@ -16,7 +16,7 @@
 	</ItemGroup>
 
 	<ItemGroup>
-		<PackageReference Include="System.IO.Pipelines" Version="9.0.1" />
+		<PackageReference Include="System.IO.Pipelines" Version="8.0.0" />
 	</ItemGroup>
 
 </Project>

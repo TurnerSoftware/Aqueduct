@@ -5,16 +5,18 @@ namespace TurnerSoftware.Aqueduct;
 
 internal static class PipeBifurcation
 {
-	private class BifurcationState
+	private class BifurcationState<TResult>
 	{
 		private readonly Pipe Pipe;
 
-		private Task? ReaderTask;
+		private Task<TResult>? ReaderTask;
 		private int RemainingBytes;
 
-		public readonly BifurcationTargetConfig Config;
+		public readonly BifurcationTargetConfig<TResult> Config;
 
-		public BifurcationState(BifurcationTargetConfig config)
+		public TResult? Result { get; private set; }
+
+		public BifurcationState(BifurcationTargetConfig<TResult> config)
 		{
 			Config = config;
 
@@ -30,7 +32,14 @@ internal static class PipeBifurcation
 
 		public void StartReader(CancellationToken cancellationToken)
 		{
-			ReaderTask = Config.Reader(Pipe.Reader, cancellationToken);
+			try
+			{
+				ReaderTask = Config.Reader(Pipe.Reader, cancellationToken);
+			}
+			catch (Exception ex)
+			{
+				ReaderTask = Task.FromException<TResult>(ex);
+			}
 		}
 
 		/// <summary>
@@ -81,11 +90,11 @@ internal static class PipeBifurcation
 		/// Completes the bifurcation target and awaits the reader. Any exceptions the reader throws will bubble out.
 		/// </summary>
 		/// <returns></returns>
-		public async Task CompleteAsync()
+		public async Task<TResult?> CompleteAsync()
 		{
 			if (IsCompleted)
 			{
-				return;
+				return Result;
 			}
 
 			IsCompleted = true;
@@ -94,8 +103,10 @@ internal static class PipeBifurcation
 			//Run the task to completion
 			if (ReaderTask is not null)
 			{
-				await ReaderTask;
+				Result = await ReaderTask;
 			}
+
+			return Result;
 		}
 
 		/// <summary>
@@ -104,17 +115,17 @@ internal static class PipeBifurcation
 		/// </summary>
 		/// <param name="exception">The exception used to trigger the faulted state.</param>
 		/// <returns></returns>
-		public async Task CompleteWithExceptionAsync(Exception exception)
+		public async Task<TResult?> CompleteWithExceptionAsync(Exception exception)
 		{
 			await Pipe.Writer.CompleteAsync(exception);
 			if (ReaderTask is not null)
 			{
 				//Ensure that the reader task has completed execution (faulted or not)
-				if (!ReaderTask.IsCompleted && !ReaderTask.IsFaulted)
+				if (!ReaderTask.IsFaulted)
 				{
 					try
 					{
-						await ReaderTask;
+						Result = await ReaderTask;
 					}
 					catch
 					{
@@ -135,10 +146,12 @@ internal static class PipeBifurcation
 					}
 				}
 			}
+
+			return Result;
 		}
 	}
 
-	public static async Task BifurcatedReadAsync(PipeReader sourceReader, BifurcationSourceConfig sourceConfig, params BifurcationTargetConfig[] targetConfigs)
+	public static async Task<IReadOnlyList<TResult?>> BifurcatedReadAsync<TResult>(PipeReader sourceReader, BifurcationSourceConfig sourceConfig, params BifurcationTargetConfig<TResult>[] targetConfigs)
 	{
 		if (targetConfigs.Length == 0)
 		{
@@ -146,7 +159,8 @@ internal static class PipeBifurcation
 		}
 
 		var earlyCompletedTargets = 0;
-		var targets = new BifurcationState[targetConfigs.Length];
+		var targets = new BifurcationState<TResult>[targetConfigs.Length];
+		var results = new TResult?[targetConfigs.Length];
 
 		for (var i = 0; i < targetConfigs.Length; i++)
 		{
@@ -203,8 +217,10 @@ internal static class PipeBifurcation
 			for (var i = 0; i < targets.Length; i++)
 			{
 				var target = targets[i];
-				await target.CompleteAsync();
+				results[i] = await target.CompleteAsync();
 			}
+
+			return results;
 		}
 		catch (Exception innerException)
 		{
@@ -214,13 +230,15 @@ internal static class PipeBifurcation
 			for (var i = 0; i < targets.Length; i++)
 			{
 				var target = targets[i];
-				await target.CompleteWithExceptionAsync(exception);
+				results[i] = await target.CompleteWithExceptionAsync(exception);
 			}
 
 			if (sourceConfig.BubbleExceptions)
 			{
 				throw exception;
 			}
+
+			return results;
 		}
 	}
 }

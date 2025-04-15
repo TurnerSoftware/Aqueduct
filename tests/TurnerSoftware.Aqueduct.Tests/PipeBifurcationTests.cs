@@ -27,7 +27,7 @@ public class PipeBifurcationTests
 	{
 		var source = CreateSource("Test Value");
 
-		await FluentActions.Awaiting(() => PipeBifurcation.BifurcatedReadAsync(source, BifurcationSourceConfig.DefaultConfig))
+		await FluentActions.Awaiting(() => PipeBifurcation.BifurcatedReadAsync<object>(source, BifurcationSourceConfig.DefaultConfig))
 			.Should().ThrowAsync<ArgumentException>()
 			.WithMessage("No target configurations*");
 	}
@@ -202,6 +202,63 @@ public class PipeBifurcationTests
 		firstTargetReadBufferLength.Should().Be(6);
 		firstTargetReaderIsComplete.Should().BeTrue();
 		secondTargetReadBufferLength.Should().Be(8);
+	}
+
+	private record TestResultData(long TargetOneValue, long TargetTwoValue);
+
+	[TestMethod]
+	public async Task MultiTarget_ResultsAreReturnedInOrderFromTargets()
+	{
+		var source = CreateSource("Test Value");
+
+		var bifurcationTask = PipeBifurcation.BifurcatedReadAsync(
+			source,
+			new BifurcationSourceConfig(),
+			new BifurcationTargetConfig<TestResultData>(
+				async (reader, cancellationToken) =>
+				{
+					var result = await reader.ReadAsync(cancellationToken);
+					return new(result.Buffer.Length, 0);
+				}
+			),
+			new BifurcationTargetConfig<TestResultData>(
+				async (reader, cancellationToken) =>
+				{
+					var result = await reader.ReadAsync(cancellationToken);
+					return new(0, result.Buffer.Length);
+				}
+			)
+		);
+
+		var result = await bifurcationTask;
+		result.Should().NotBeNull().And.HaveCount(2);
+		result[0].Should().BeEquivalentTo(new TestResultData(10, 0));
+		result[1].Should().BeEquivalentTo(new TestResultData(0, 10));
+	}
+	
+	[TestMethod]
+	public async Task MultiTarget_NonBubblingExceptionsStillReturnResultsThatCompleted()
+	{
+		var source = CreateSource("Test Value");
+
+		var bifurcationTask = PipeBifurcation.BifurcatedReadAsync(
+			source,
+			new BifurcationSourceConfig(bubbleExceptions: false),
+			new BifurcationTargetConfig<bool>(
+				(PipeReader reader, CancellationToken cancellationToken) =>
+				{
+					throw new Exception("Whoops");
+				}
+			),
+			new BifurcationTargetConfig<bool>(
+				(PipeReader reader, CancellationToken cancellationToken) => Task.FromResult(true)
+			)
+		);
+
+		var result = await bifurcationTask;
+		result.Should().NotBeNull().And.HaveCount(2);
+		result[0].Should().BeFalse();
+		result[1].Should().BeTrue();
 	}
 
 	[TestMethod]
