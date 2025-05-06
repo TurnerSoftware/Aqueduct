@@ -30,11 +30,26 @@ internal static class PipeBifurcation
 
 		public bool IsCompleted { get; private set; }
 
+		private async Task<TResult> RunReaderWithCleanup(CancellationToken cancellationToken)
+		{
+			try
+			{
+				var result = await Config.Reader(Pipe.Reader, cancellationToken);
+				await Pipe.Reader.CompleteAsync();
+				return result;
+			}
+			catch (Exception ex)
+			{
+				await Pipe.Reader.CompleteAsync(ex);
+				throw;
+			}
+		}
+
 		public void StartReader(CancellationToken cancellationToken)
 		{
 			try
 			{
-				ReaderTask = Config.Reader(Pipe.Reader, cancellationToken);
+				ReaderTask = RunReaderWithCleanup(cancellationToken);
 			}
 			catch (Exception ex)
 			{
