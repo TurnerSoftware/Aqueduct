@@ -30,11 +30,26 @@ internal static class PipeBifurcation
 
 		public bool IsCompleted { get; private set; }
 
+		private async Task<TResult> RunReaderWithCleanup(CancellationToken cancellationToken)
+		{
+			try
+			{
+				var result = await Config.Reader(Pipe.Reader, cancellationToken);
+				await Pipe.Reader.CompleteAsync();
+				return result;
+			}
+			catch (Exception ex)
+			{
+				await Pipe.Reader.CompleteAsync(ex);
+				throw;
+			}
+		}
+
 		public void StartReader(CancellationToken cancellationToken)
 		{
 			try
 			{
-				ReaderTask = Config.Reader(Pipe.Reader, cancellationToken);
+				ReaderTask = RunReaderWithCleanup(cancellationToken);
 			}
 			catch (Exception ex)
 			{
@@ -55,10 +70,19 @@ internal static class PipeBifurcation
 				return false;
 			}
 
-			//Await faulted readers to correctly bubble exceptions
-			if (ReaderTask is not null && ReaderTask.IsFaulted)
+			if (ReaderTask is not null)
 			{
-				await ReaderTask;
+				//Await faulted readers to correctly bubble exceptions
+				if (ReaderTask.IsFaulted)
+				{
+					await ReaderTask;
+				}
+
+				//If the reader task finishes early for some other reason
+				if (ReaderTask.IsCompleted)
+				{
+					return false;
+				}
 			}
 
 			var bytesToRead = (int)buffer.Length;
@@ -68,7 +92,7 @@ internal static class PipeBifurcation
 			}
 
 			var destination = Pipe.Writer.GetMemory(bytesToRead);
-			buffer.CopyTo(destination.Span);
+			buffer.Slice(0, bytesToRead).CopyTo(destination.Span);
 
 			Pipe.Writer.Advance(bytesToRead);
 

@@ -73,6 +73,37 @@ public class PipeBifurcationTests
 	}
 
 	[TestMethod]
+	public async Task SingleTarget_ReaderCompletesEarly_Success()
+	{
+		var source = new Pipe();
+		var buffer = new byte[16];
+		await source.Writer.WriteAsync(buffer);
+		var targetReaderHasCompleted = false;
+
+		var bifurcationTask = PipeBifurcation.BifurcatedReadAsync(
+			source.Reader,
+			new BifurcationSourceConfig(minReadBufferSize: -1),
+			new BifurcationTargetConfig(
+				async (Stream reader, CancellationToken cancellationToken) =>
+				{
+					var buffer = new byte[1];
+					await reader.ReadAsync(buffer, cancellationToken);
+					targetReaderHasCompleted = true;
+				},
+				//These are set to exaggerate the problem where exiting early
+				//still has the pipe being fed bytes till the point it blocks
+				blockAfter: 16,
+				resumeAfter: 8
+			)
+		);
+
+		await source.Writer.WriteAsync(buffer);
+		await source.Writer.CompleteAsync();
+		await bifurcationTask;
+		targetReaderHasCompleted.Should().BeTrue();
+	}
+
+	[TestMethod]
 	public async Task MultiTarget_DefaultConfig_Success()
 	{
 		var source = CreateSource("Test Value");
