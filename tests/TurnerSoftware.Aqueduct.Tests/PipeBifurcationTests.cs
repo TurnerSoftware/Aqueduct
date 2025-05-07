@@ -89,7 +89,11 @@ public class PipeBifurcationTests
 					var buffer = new byte[1];
 					await reader.ReadAsync(buffer, cancellationToken);
 					targetReaderHasCompleted = true;
-				}
+				},
+				//These are set to exaggerate the problem where exiting early
+				//still has the pipe being fed bytes till the point it blocks
+				blockAfter: 16,
+				resumeAfter: 8
 			)
 		);
 
